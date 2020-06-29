@@ -1,0 +1,19 @@
+{
+  "$schema": "https://deno.land/x/denon/schema.json",
+  "env": {
+    "TOKEN": "£"
+  },
+  "scripts": {
+    "start": {
+      "cmd": "deno run server.ts",
+      "allow": ["env", "net", "read"],
+      "unstable": true,
+      "env": {
+        "PORT": "5556"
+      }
+    }
+  },
+  "logger": {
+    "debug": false
+  }
+}
