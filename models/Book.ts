@@ -38,9 +38,11 @@ export class Book extends DB {
 
   async getBookWithDetails(id: any) {
     const book = await this.getOne(id);
-    const { rows } = await chapterModel.getChaptersByBookID(id) || null;
-
-    return { book, chapters: rows };
+    const chapters = await chapterModel.getChaptersByBookID(id) || null;
+    const notes = await this.getNotesByModel(id);
+    console.log(notes)
+  
+    return { book, chapters, notes };
   }
   async getBook(id: any) {
     return await this.getOne(id);

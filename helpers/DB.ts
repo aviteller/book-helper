@@ -301,27 +301,39 @@ class DB {
     }
   };
 
-  customQuery = async (query: string) => {
+  customQuery = async (query: string, toReturn: boolean = false) => {
     try {
       await client.connect();
 
       const result = await client.query(query);
 
       if (result.rows.toString() === "") {
-        throw new ErrorResponse("Resource could not be found", 404);
+        if (!toReturn) {
+          throw new ErrorResponse("Resource could not be found", 404);
+        } else return null;
       } else {
         const resObj: any = new Object();
-        result.rows.map((p) =>
-          result.rowDescription.columns.map((el, i) => (resObj[el.name] = p[i]))
-        );
+        const resultsArray: Array<Object> = new Array();
+        result.rows.map((p: any) => {
+          let obj: any = new Object();
+          result.rowDescription.columns.map(
+            (el: any, i: any) => (obj[el.name] = p[i]),
+          );
+          resultsArray.push(obj);
+        });
+        resObj.rows = resultsArray;
         return resObj;
+        // const resObj: any = new Object();
+        // result.rows.map((p) =>
+        //   result.rowDescription.columns.map((el, i) => (resObj[el.name] = p[i]))
+        // );
+        // return resObj;
       }
     } catch (error) {
       throw new ErrorResponse(error.toString(), 404);
     } finally {
       await client.end();
     }
-
   };
 
   updateOne = async (values: any, id: string) => {
@@ -534,19 +546,33 @@ class DB {
     }
   };
 
-  isOwnerByID = async (id_value:string, user_id:number) => {
-    return this.isOwner("id",id_value, user_id)
-  }
+  isOwnerByID = async (id_value: string, user_id: number) => {
+    return this.isOwner("id", id_value, user_id);
+  };
 
-  isOwner = async (id_field:string, id_value:string, user_id:number) => {
-    const result = await this.customQuery(`SELECT user_id FROM ${this.table} WHERE deleted_at is null AND ${id_field} = ${id_value}`)
+  isOwner = async (id_field: string, id_value: string, user_id: number) => {
+    const result = await this.customQuery(
+      `SELECT user_id FROM ${this.table} WHERE deleted_at is null AND ${id_field} = ${id_value}`,
+    );
 
-    if(result && result.user_id === user_id) {
+    if (result && result.user_id === user_id) {
       return true;
     } else {
       return false;
     }
-  }
+  };
+
+  getNotesByModel = async (model_id: number) => {
+    let notes = await this.customQuery(
+      `SELECT * FROM notes WHERE model = '${this.table}' AND model_id = ${model_id}`,
+      true,
+    );
+
+    if (notes) return notes.rows;
+    else {
+      return null;
+    }
+  };
 }
 
 export { DB };

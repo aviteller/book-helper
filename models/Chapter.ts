@@ -50,7 +50,10 @@ export class Chapter extends DB {
   }
 
   async getChaptersByBookID(id: any) {
-    return await this.getAllByValue("book_id", id);
+    let chapters = await this.getAllByValue("book_id", id);
+    if(chapters != 0) return chapters.rows
+    return null
+
   }
 
   async addChapter(values: any) {

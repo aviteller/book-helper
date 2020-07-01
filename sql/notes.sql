@@ -1,4 +1,4 @@
-CREATE TABLE public.audits
+CREATE TABLE public.notes
 (
     id serial,
     user_id integer,
@@ -11,5 +11,5 @@ CREATE TABLE public.audits
     PRIMARY KEY (id)
 );
 
-ALTER TABLE public.audits
+ALTER TABLE public.notes
     OWNER to avi;

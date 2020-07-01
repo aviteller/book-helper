@@ -42,6 +42,7 @@ export class BookController {
 
   getBookWithDetails = async (ctx: any) => {
     let results = await bookModel.getBookWithDetails(ctx.params.id);
+    
     ctx.response = makeResponse(ctx, 200, true, results);
   };
 
