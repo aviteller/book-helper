@@ -1,11 +1,14 @@
-CREATE TABLE public.books
+CREATE TABLE public.chapters
 (
     id serial,
     user_id integer,
-    name text,
-    slug text,
+    book_id integer,
+    title text,
     description text,
-    genre text,
+    text text,
+    position text,
+    status text,
+    slug text,
     public boolean DEFAULT false,
     public_read_only boolean DEFAULT false,
     created_at time with time zone DEFAULT CURRENT_TIMESTAMP,
@@ -14,5 +17,5 @@ CREATE TABLE public.books
     PRIMARY KEY (id)
 );
 
-ALTER TABLE public.books
+ALTER TABLE public.chapters
     OWNER to avi;

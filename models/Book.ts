@@ -1,18 +1,18 @@
 import { DB } from "../helpers/DB.ts";
-import { makeResponse } from "../util/response.ts";
-
-
+import { Chapter } from "./Chapter.ts";
+const chapterModel = new Chapter();
 export interface IBook {
   id?: string;
   user_id: number;
   name: string;
   slug?: string;
   description?: string;
-  genre?:string
+  genre?: string;
 }
 
 export class Book extends DB {
   table = "books";
+  alias = "b";
   record_events = true;
 
   belongsTo = {
@@ -37,27 +37,25 @@ export class Book extends DB {
   }
 
   async getBookWithDetails(id: any) {
-    const returnBook = await this.getOne(id);
-    // const jobs = await jobModel.getJobsByBookID(id);
+    const book = await this.getOne(id);
+    const {rows} = await chapterModel.getChaptersByBookID(id)||null;
 
-    return  { book: returnBook };
+    return { book, chapters:rows };
   }
   async getBook(id: any) {
-    const returnBook = await this.getOne(id);
-
-    return returnBook;
+    return await this.getOne(id);
   }
 
   async getBookByValue(field: string, value: any) {
     return await this.getOneByValue(field, value);
   }
 
-  async getBooks(queryParams: any) {
-    return await this.getAll(queryParams, true);
+  async getBooks(ctx: any) {
+    return await this.getAll(ctx, true);
   }
   // async getBooksWithJobs(queryParams: any) {
   //   let companies = await this.getAll(queryParams, true);
-    
+
   //   if (companies.rows && companies.rows.length > 0) {
   //     for await (const company of companies.rows) {
   //       let jobs = await jobModel.getJobsByCompanyID(company.id.toString());
@@ -65,10 +63,22 @@ export class Book extends DB {
   //     }
   //   }
 
-    
-
   //   return companies
   // }
+
+  permissonToEdit = async (book_id: any, user: any): Promise<boolean> => {
+    console.log(user);
+    if (user.role === "admin") return true;
+    console.log("not- admin");
+    if (await this.isOwnerByID(book_id, user.id)) return true;
+    console.log("not- owner");
+    let book = await this.getBook(book_id);
+    console.log(book);
+    if (book.public === false) return false;
+    console.log("not- public");
+    if (book.public_read_only === false) return true;
+    else return false;
+  };
 
   async addBook(values: any) {
     return await this.addOne(values);

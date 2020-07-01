@@ -38,11 +38,9 @@ export class User extends DB {
     return await this.getOneByValue(field, value);
   }
 
-  async getUsers(queryParams: any) {
-    if (queryParams.select == undefined)
-      queryParams.select = "id,name,email,role,created_at";
+  async getUsers(ctx: any) {
 
-    return await this.getAll(queryParams);
+    return await this.getAll(ctx, false, "id,name,email,role,created_at");
   }
 
   async addUser(values: any) {

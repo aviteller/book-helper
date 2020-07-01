@@ -1,21 +1,15 @@
-import { Router, send } from "https://deno.land/x/oak/mod.ts";
-
+import { Router } from "https://deno.land/x/oak/mod.ts";
 import { UserController } from "../controllers/users.ts";
 import { BookController } from "../controllers/books.ts";
-import { JobController } from "../controllers/jobs.ts";
+import { ChapterController } from "../controllers/chapters.ts";
 import { protect, authorize } from "../middleware/auth.ts";
 import { register, login, me } from "../controllers/auth.ts";
 
 const userController = new UserController();
 const bookController = new BookController();
-const jobController = new JobController();
+const chapterController = new ChapterController();
 
 const router = new Router();
-
-// router.get("/", (ctx) => {
-//   console.log(ctx)
-//   ctx.render("index.ejs", { data: { msg: "World" } });
-// });
 
 router
   .get("/api/v1/users", protect, authorize("admin"), userController.getUsers)
@@ -25,13 +19,13 @@ router
     "/api/v1/users/:id",
     protect,
     authorize("admin"),
-    userController.updateUser
+    userController.updateUser,
   )
   .delete(
     "/api/v1/users/:id",
     protect,
     authorize("admin"),
-    userController.deleteUser
+    userController.deleteUser,
   );
 
 router
@@ -39,64 +33,64 @@ router
     "/api/v1/books",
     // protect,
     // authorize("admin", "book"),
-    bookController.getBookWithDetails
+    bookController.getBooks,
   )
   .get(
     "/api/v1/books/:id",
     // protect,
     // authorize("admin", "book"),
-    bookController.getBooks
+    bookController.getBookWithDetails,
   )
   .post(
     "/api/v1/books",
     // protect,
     // authorize("admin", "book"),
-    bookController.addBook
+    bookController.addBook,
   )
   .put(
     "/api/v1/books/:id",
     protect,
-    authorize("admin", "book"),
-    bookController.updateBook
+    authorize("admin", "user"),
+    bookController.updateBook,
   )
   .delete(
     "/api/v1/books/:id",
     protect,
-    authorize("admin", "book"),
-    bookController.deleteBook
+    authorize("admin", "user"),
+    bookController.deleteBook,
   );
 
-// router
-//   .get(
-//     "/api/v1/jobs",
-//     // protect,
-//     // authorize("admin", "book"),
-//     jobController.getJobs
-//   )
-//   .get(
-//     "/api/v1/jobs/:id",
-//     // protect,
-//     // authorize("admin", "book"),
-//     jobController.getJob
-//   )
-//   .post(
-//     "/api/v1/jobs",
-//     // protect,
-//     // authorize("admin", "book"),
-//     jobController.addJob
-//   )
-//   .put(
-//     "/api/v1/jobs/:id",
-//     protect,
-//     authorize("admin", "book"),
-//     jobController.updateJob
-//   )
-//   .delete(
-//     "/api/v1/jobs/:id",
-//     protect,
-//     authorize("admin", "book"),
-//     jobController.deleteJob
-//   );
+router
+  .get(
+    "/api/v1/chapters",
+    // protect,
+    // authorize("admin", "book"),
+    chapterController.getChapters,
+  )
+  .get(
+    "/api/v1/chapters/:id",
+    // protect,
+    // authorize("admin", "book"),
+    chapterController.getChapter,
+  )
+  .post(
+    "/api/v1/chapters",
+    // protect,
+    // authorize("admin", "book"),
+    chapterController.addChapter,
+  )
+  .put(
+    "/api/v1/chapters/:id",
+    protect,
+    authorize("admin", "user"),
+    chapterController.updateChapter,
+  )
+  .delete(
+    "/api/v1/chapters/:id",
+    protect,
+    authorize("admin", "user"),
+    chapterController.deleteChapter,
+  );
 
 router
   .post("/api/v1/auth/register", register)

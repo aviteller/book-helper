@@ -10,6 +10,7 @@ const client = new Client(dbCreds);
 
 class DB {
   table?: string;
+  alias?: string;
   belongsTo?: any;
   hasOne?: any;
   hasMany?: any;
@@ -40,7 +41,7 @@ class DB {
                deleted_at is not null ${serachStr.replace("OR", "AND")}
                ELSE
                deleted_at is null ${serachStr}
-          END`
+          END`,
     );
 
     returnNo = +rows;
@@ -60,7 +61,8 @@ class DB {
       let arrLen = searchFields.length;
 
       searchFields.forEach((s, i) => {
-        returnStr += ` CAST(${s} as TEXT) ILIKE '%${searchValue}%' `;
+        returnStr +=
+          ` CAST(${this.alias}${s} as TEXT) ILIKE '%${searchValue}%' `;
         if (i + 1 < arrLen) returnStr += " OR ";
       });
     }
@@ -75,7 +77,7 @@ class DB {
   };
 
   getPageAndLimit = (
-    queryParams: any
+    queryParams: any,
   ): {
     page: number;
     limit: any;
@@ -101,34 +103,36 @@ class DB {
     return returnObj;
   };
 
-  getAll = async (ctx: any, joinOwner?: boolean) => {
+  getAll = async (ctx: any, joinOwner?: boolean, optSelectFields?: string) => {
     let response: any = new Object();
     let queryParams = helpers.getQuery(ctx);
     let { select, sort } = queryParams;
 
     try {
+      select = select !== undefined ? select : optSelectFields || "*";
+
       await client.connect();
 
       const orderBy: string = await this.sortBy(queryParams);
 
       const searchByString: string = await this.searchBy(queryParams);
 
-      const selectFields: string = select === undefined ? "*" : select;
+      const selectFields: string = select === undefined
+        ? "*"
+        : `${this.alias}.${select.split(",").join(`,${this.alias}.`)}`;
 
       const deleted = (await this.getDeleted(queryParams)) ? "is not" : "is";
 
       const pageAndLimitObject = await this.getPageAndLimit(queryParams);
 
       let join = joinOwner
-        ? ` JOIN (SELECT ${this.belongsTo.fields || "*"} FROM  ${
-            this.belongsTo.table
-          }) ${this.belongsTo.alias} ON ${this.table}.${
-            this.belongsTo.selector
-          } = ${this.belongsTo.alias}.id`
+        ? ` JOIN (SELECT ${this.belongsTo.fields ||
+          "*"} FROM  ${this.belongsTo.table}) ${this.belongsTo.alias} ON ${this.alias}.${this.belongsTo.selector} = ${this.belongsTo.alias}.id`
         : "";
 
-      const finalQuery = `SELECT ${selectFields} FROM ${this.table} ${join}  WHERE ${this.table}.deleted_at ${deleted} null ${searchByString} ${orderBy} ${pageAndLimitObject.pageStr} `;
-
+      const finalQuery =
+        `SELECT ${selectFields} FROM ${this.table} AS ${this.alias} ${join}  WHERE ${this.alias}.deleted_at ${deleted} null ${searchByString} ${orderBy} ${pageAndLimitObject.pageStr} `;
+      // console.log(finalQuery)
       const result = await client.query(finalQuery);
 
       const resObj: any = new Object();
@@ -156,11 +160,11 @@ class DB {
 
       const total = await this.totalRows(
         searchByString,
-        await this.getDeleted(queryParams)
+        await this.getDeleted(queryParams),
       );
 
       resObj.pagination = await this.pagination(pageAndLimitObject, total);
-      resObj.count = result.rowCount;
+      resObj.pagination.count = result.rowCount;
       resObj.rows = resultsArray;
       resObj.sortBy = sort;
 
@@ -181,7 +185,7 @@ class DB {
       endIndex: number;
       pageStr: string;
     },
-    total: number
+    total: number,
   ): Object => {
     const returnObj: any = new Object();
     if (pageObj.limit !== "max") {
@@ -210,7 +214,7 @@ class DB {
         let searchDeleted = deleted ? "is not" : "is";
         result = await client.query(
           `SELECT * FROM ${this.table} WHERE ${field} = $1 AND deleted_at ${searchDeleted} null`,
-          value
+          value,
         );
       } catch (error) {
         throw new ErrorResponse(error.toString(), 404);
@@ -224,7 +228,7 @@ class DB {
         result.rows.map((p: any) => {
           let obj: any = new Object();
           result.rowDescription.columns.map(
-            (el: any, i: any) => (obj[el.name] = p[i])
+            (el: any, i: any) => (obj[el.name] = p[i]),
           );
           resultsArray.push(obj);
         });
@@ -249,7 +253,7 @@ class DB {
 
       const result = await client.query(
         `SELECT * FROM ${this.table} WHERE id = $1 AND deleted_at ${searchDeleted} null`,
-        id
+        id,
       );
 
       if (result.rows.toString() === "") {
@@ -278,7 +282,7 @@ class DB {
 
       const result = await client.query(
         `SELECT * FROM ${this.table} WHERE ${field} = $1 AND deleted_at ${searchDeleted} null`,
-        value
+        value,
       );
 
       if (result.rows.toString() === "") {
@@ -298,7 +302,6 @@ class DB {
   };
 
   customQuery = async (query: string) => {
-    let response: any = new Object();
     try {
       await client.connect();
 
@@ -319,7 +322,6 @@ class DB {
       await client.end();
     }
 
-    return response;
   };
 
   updateOne = async (values: any, id: string) => {
@@ -338,9 +340,11 @@ class DB {
         updatedValues.push(values[v]);
       }
 
-      const updatedQuery = `UPDATE ${this.table} SET ${updatedColumns.join(
-        ","
-      )}, updated_at = CURRENT_TIMESTAMP WHERE id = ${id} RETURNING *`;
+      const updatedQuery = `UPDATE ${this.table} SET ${
+        updatedColumns.join(
+          ",",
+        )
+      }, updated_at = CURRENT_TIMESTAMP WHERE id = ${id} RETURNING *`;
 
       try {
         await client.connect();
@@ -355,6 +359,18 @@ class DB {
         if (result.rows.toString() === "") {
           throw new ErrorResponse("Error updating", 404);
         } else {
+          if (this.record_events && this.table) {
+            this.auditLog(
+              this.table,
+              resObj.id,
+              `Updated ${
+                updatedColumns.join(
+                  ",",
+                )
+              }`,
+              resObj.user_id,
+            );
+          }
           return resObj;
         }
       } catch (error) {
@@ -379,9 +395,11 @@ class DB {
       insertPlaceholder.push(`$${i++}`);
     }
 
-    const insertQuery = `INSERT INTO ${this.table}(${insertColumns.join(
-      ","
-    )}) VALUES(${insertPlaceholder}) RETURNING *`;
+    const insertQuery = `INSERT INTO ${this.table}(${
+      insertColumns.join(
+        ",",
+      )
+    }) VALUES(${insertPlaceholder}) RETURNING *`;
 
     try {
       await client.connect();
@@ -442,7 +460,7 @@ class DB {
         if (res.body.data.deleted_at == null) {
           await client.query(
             `UPDATE ${this.table} SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1`,
-            id
+            id,
           );
         } else {
           await client.query(`DELETE FROM ${this.table} WHERE id = $1`, id);
@@ -463,7 +481,7 @@ class DB {
     model_id: number,
     action: string,
     user_id: number,
-    parent?: { parent_model: string; parent_model_id: number }
+    parent?: { parent_model: string; parent_model_id: number },
   ) => {
     const auditBody: any = {
       user_id,
@@ -483,9 +501,11 @@ class DB {
       insertValues.push(auditBody[v]);
       insertPlaceholder.push(`$${i++}`);
     }
-    const insertQuery = `INSERT INTO audits(${insertColumns.join(
-      ","
-    )}) VALUES(${insertPlaceholder}) returning * `;
+    const insertQuery = `INSERT INTO audits(${
+      insertColumns.join(
+        ",",
+      )
+    }) VALUES(${insertPlaceholder}) returning * `;
 
     try {
       try {
@@ -498,7 +518,6 @@ class DB {
         result.rows.map((p) =>
           result.rowDescription.columns.map((el, i) => (resObj[el.name] = p[i]))
         );
-
 
         if (result.rows.toString() === "") {
           throw new ErrorResponse("Error adding audit", 404);
@@ -514,6 +533,20 @@ class DB {
       throw new ErrorResponse(error, 401);
     }
   };
+
+  isOwnerByID = async (id_value:string, user_id:number) => {
+    return this.isOwner("id",id_value, user_id)
+  }
+
+  isOwner = async (id_field:string, id_value:string, user_id:number) => {
+    const result = await this.customQuery(`SELECT user_id FROM ${this.table} WHERE deleted_at is null AND ${id_field} = ${id_value}`)
+
+    if(result && result.user_id === user_id) {
+      return true;
+    } else {
+      return false;
+    }
+  }
 }
 
 export { DB };
