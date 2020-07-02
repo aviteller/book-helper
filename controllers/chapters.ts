@@ -1,5 +1,5 @@
 import { IChapter, Chapter, EChapterStatus } from "../models/Chapter.ts";
-import { Book} from "../models/Book.ts";
+import { Book } from "../models/Book.ts";
 import { ErrorResponse } from "../util/errorResponse.ts";
 import { makeResponse } from "../util/response.ts";
 import { getUserByContext } from "../util/token.ts";
@@ -49,25 +49,23 @@ export class ChapterController {
          * 
          */
 
-
-
         if (user) {
-            let isAllowed = await bookModel.permissonToEdit( book_id, user)
+          let isAllowed = await bookModel.permissons(book_id, user);
 
-            
-            
-          let chapter: IChapter = {
-            title,
-            book_id,
-            user_id: +user.id,
-          };
-          chapter.slug = await slugify(title);
-          chapter = { ...chapter, ...values };
+          if (isAllowed === "editable" || isAllowed === "owner") {
+            let chapter: IChapter = {
+              title,
+              book_id,
+              user_id: +user.id,
+            };
 
-          if(isAllowed) {
+            chapter.slug = await slugify(title);
+            chapter = { ...chapter, ...values };
 
-              let result = await chapterModel.addChapter(chapter);
-              ctx.response = makeResponse(ctx, 201, true, result);
+            let result = await chapterModel.addChapter(chapter);
+            ctx.response = makeResponse(ctx, 201, true, result);
+          } else {
+            throw new ErrorResponse("Permissons Denied", 404);
           }
         }
       } else {
@@ -90,7 +88,7 @@ export class ChapterController {
   }) => {
     const body = await request.body();
     if (!request.hasBody) {
-        throw new ErrorResponse("No data found", 400);
+      throw new ErrorResponse("No data found", 400);
     } else {
       let result = await chapterModel.updateChapter(body.value, params.id);
       response = makeResponse(response, 201, true, result);

@@ -40,7 +40,6 @@ export class Book extends DB {
     const book = await this.getOne(id);
     const chapters = await chapterModel.getChaptersByBookID(id) || null;
     const notes = await this.getNotesByModel(id);
-    console.log(notes)
   
     return { book, chapters, notes };
   }
@@ -69,7 +68,7 @@ export class Book extends DB {
   // }
 
   permissonToEdit = async (book_id: any, user: any): Promise<boolean> => {
-    console.log(user);
+    // console.log(user);
     if (user.role === "admin") return true;
     console.log("not- admin");
     if (await this.isOwnerByID(book_id, user.id)) return true;

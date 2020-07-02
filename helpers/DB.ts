@@ -2,8 +2,15 @@ import { Client } from "https://deno.land/x/postgres/mod.ts";
 import { dbCreds } from "../util/config.ts";
 import { helpers } from "https://deno.land/x/oak/mod.ts";
 import { ErrorResponse } from "../util/errorResponse.ts";
-import { auditLog } from "../controllers/audit.ts";
+import { auditLog } from "../controllers/audits.ts";
 import { IAudit, Audit } from "../models/Audit.ts";
+
+enum EPermissions {
+  editable = "editable",
+  read = "read-only",
+  none = "no-access",
+  owner = "owner",
+}
 
 //init client
 const client = new Client(dbCreds);
@@ -564,13 +571,32 @@ class DB {
 
   getNotesByModel = async (model_id: number) => {
     let notes = await this.customQuery(
-      `SELECT * FROM notes WHERE model = '${this.table}' AND model_id = ${model_id}`,
+      `SELECT * FROM notes WHERE deleted_at is null AND model = '${this.table}' AND model_id = ${model_id}`,
       true,
     );
 
     if (notes) return notes.rows;
     else {
       return null;
+    }
+  };
+
+  permissons = async (
+    model_id: any,
+    user: any,
+  ): Promise<EPermissions> => {
+    if (user.role === "admin") return EPermissions.editable;
+
+    if (await this.isOwnerByID(model_id, user.id)) return EPermissions.owner;
+
+    const model = await this.getOne(model_id);
+
+    if (model.public === false) return EPermissions.none;
+
+    if (model.public_read_only === false) {
+      return EPermissions.editable;
+    } else {
+      return EPermissions.read;
     }
   };
 }

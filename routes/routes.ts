@@ -31,20 +31,20 @@ router
 router
   .get(
     "/api/v1/books",
-    // protect,
-    // authorize("admin", "book"),
+    protect,
+    authorize("admin", "user"),
     bookController.getBooks,
   )
   .get(
     "/api/v1/books/:id",
-    // protect,
-    // authorize("admin", "book"),
+    protect,
+    authorize("admin", "user"),
     bookController.getBookWithDetails,
   )
   .post(
     "/api/v1/books",
-    // protect,
-    // authorize("admin", "book"),
+    protect,
+    authorize("admin", "user"),
     bookController.addBook,
   )
   .put(
@@ -63,20 +63,20 @@ router
 router
   .get(
     "/api/v1/chapters",
-    // protect,
-    // authorize("admin", "book"),
+    protect,
+    authorize("admin", "user"),
     chapterController.getChapters,
   )
   .get(
     "/api/v1/chapters/:id",
-    // protect,
-    // authorize("admin", "book"),
+    protect,
+    authorize("admin", "user"),
     chapterController.getChapter,
   )
   .post(
     "/api/v1/chapters",
-    // protect,
-    // authorize("admin", "book"),
+    protect,
+    authorize("admin", "user"),
     chapterController.addChapter,
   )
   .put(
