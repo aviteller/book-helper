@@ -10,3 +10,7 @@ export const slugify = (str:string): string => {
 
     return returnString
 }
+
+export const checkSlug = (model:string, slug:string) :string =>{
+    return ""
+}

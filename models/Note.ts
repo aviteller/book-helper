@@ -17,7 +17,7 @@ export class Note extends DB {
       "user_id" in values &&
       "model" in values &&
       "model_id" in values &&
-      "action" in values
+      "text" in values
     ) {
       return true;
     } else {

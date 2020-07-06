@@ -7,6 +7,7 @@ const app = new Application();
 
 app.use(async (ctx, next) => {
   try {
+    // console.log(ctx.request.headers)
     await next();
   } catch (err) {
     console.log(err)

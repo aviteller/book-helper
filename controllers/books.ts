@@ -41,9 +41,21 @@ export class BookController {
   // @ route GET /api/v1/companies/:id
 
   getBookWithDetails = async (ctx: any) => {
-    let results = await bookModel.getBookWithDetails(ctx.params.id);
-    
-    ctx.response = makeResponse(ctx, 200, true, results);
+    const user: any = await getUserByContext(ctx);
+    let permisson = await bookModel.permissons(ctx.params.id, user);
+
+    if (permisson !== "no-access") {
+      let results: any = await bookModel.getBookWithDetails(ctx.params.id);
+      results.permisson = permisson;
+      ctx.response = makeResponse(ctx, 200, true, results);
+    } else {
+      ctx.response = makeResponse(
+        ctx,
+        200,
+        true,
+        { success: false, msg: "no-access" },
+      );
+    }
   };
 
   // @desc Add Books
@@ -62,7 +74,8 @@ export class BookController {
             name,
             user_id: +user.id,
           };
-          book.slug = await slugify(name);
+          book.slug = await bookModel.makeSlug(name);
+          // check slug for uniqueness 
           book = { ...book, ...values };
           let result = await bookModel.addBook(book);
 
@@ -77,36 +90,26 @@ export class BookController {
   // @desc update Books
   // @ route PUT /api/v1/companies/:id
 
-  updateBook = async ({
-    params,
-    request,
-    response,
-  }: {
-    params: { id: string };
-    request: any;
-    response: any;
-  }) => {
-    const body = await request.body();
-    if (!request.hasBody) {
+  updateBook = async (ctx:any) => {
+    const body = await ctx.request.body();
+    if (!ctx.request.hasBody) {
       throw new ErrorResponse("No data found", 400);
     } else {
-      let result = await bookModel.updateBook(body.value, params.id);
+      if(body.value.name) {
+        body.value.slug = await bookModel.makeSlug(body.value.name, ctx.params.id);
+      }
+      let result = await bookModel.updateBook(body.value, ctx.params.id);
+
       // await auditLog("Book", result.id, "Updated", result.user_id)
-      response = makeResponse(response, 201, true, result);
+      ctx.response = makeResponse(ctx, 201, true, result);
     }
   };
 
   // @desc Delete Book
   // @ route DELETE  /api/v1/companies/:id
 
-  deleteBook = async ({
-    params,
-    response,
-  }: {
-    params: { id: string };
-    response: any;
-  }) => {
-    let results = await bookModel.deleteBook(params.id);
-    response = makeResponse(response, 201, true, results);
+  deleteBook = async (ctx:any) => {
+    let results = await bookModel.deleteBook(ctx.params.id);
+    ctx.response = makeResponse(ctx, 201, true, results);
   };
 }

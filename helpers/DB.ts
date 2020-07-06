@@ -6,10 +6,12 @@ import { auditLog } from "../controllers/audits.ts";
 import { IAudit, Audit } from "../models/Audit.ts";
 
 enum EPermissions {
+  admin = "admin",
   editable = "editable",
   read = "read-only",
   none = "no-access",
   owner = "owner",
+  comments = "add-comment",
 }
 
 //init client
@@ -28,9 +30,9 @@ class DB {
     let retrunStr: string = "";
     if (sort !== undefined) {
       if (sort.charAt(0) === "-") {
-        retrunStr = ` ORDER BY ${this.table}.${sort.substring(1)} DESC`;
+        retrunStr = ` ORDER BY ${this.alias}.${sort.substring(1)} DESC`;
       } else {
-        retrunStr = ` ORDER BY ${this.table}.${sort} ASC`;
+        retrunStr = ` ORDER BY ${this.alias}.${sort} ASC`;
       }
     } else {
       ` ORDER BY created_at ASC `;
@@ -124,7 +126,7 @@ class DB {
 
       const searchByString: string = await this.searchBy(queryParams);
 
-      const selectFields: string = select === undefined
+      const selectFields: string = select === "*"
         ? "*"
         : `${this.alias}.${select.split(",").join(`,${this.alias}.`)}`;
 
@@ -141,7 +143,7 @@ class DB {
         `SELECT ${selectFields} FROM ${this.table} AS ${this.alias} ${join}  WHERE ${this.alias}.deleted_at ${deleted} null ${searchByString} ${orderBy} ${pageAndLimitObject.pageStr} `;
       // console.log(finalQuery)
       const result = await client.query(finalQuery);
-
+      // console.log(result.rows)
       const resObj: any = new Object();
 
       const resultsArray: Array<Object> = new Array();
@@ -251,7 +253,7 @@ class DB {
     return response;
   };
 
-  getOne = async (id: string, deleted?: boolean) => {
+  getOne = async (id: string, deleted?: boolean, returnTo: boolean = false) => {
     let response: any = new Object();
     try {
       await client.connect();
@@ -264,6 +266,7 @@ class DB {
       );
 
       if (result.rows.toString() === "") {
+        if (returnTo) return false;
         throw new ErrorResponse("No rows found", 404);
       } else {
         const resObj: any = new Object();
@@ -382,11 +385,7 @@ class DB {
             this.auditLog(
               this.table,
               resObj.id,
-              `Updated ${
-                updatedColumns.join(
-                  ",",
-                )
-              }`,
+              `Updated ${JSON.stringify(values)}`,
               resObj.user_id,
             );
           }
@@ -450,11 +449,11 @@ class DB {
 
   deleteOne = async (id: string) => {
     let response: any = new Object();
-    let res = await this.getOne(id);
+    let res = await this.getOne(id, false, true);
+    if (!res.id) {
+      let resDeleted = await this.getOne(id, true, true);
 
-    if (res.error) {
-      let resDeleted = await this.getOne(id, true);
-
+      // console.log('s',resDeleted)
       if (resDeleted.error) {
         throw new ErrorResponse("Shouldnt have made it here", 404);
       } else {
@@ -463,7 +462,7 @@ class DB {
 
           await client.query(`DELETE FROM ${this.table} WHERE id = $1`, id);
 
-          return `${this.table} with id ${id} PermaDeleted`;
+          return { msg: `${this.table} with id ${id} PermaDeleted` };
         } catch (error) {
           throw new ErrorResponse(error.toString(), 404);
         } finally {
@@ -476,16 +475,13 @@ class DB {
       try {
         await client.connect();
         // check for deleted flag if deleted flag then perma delete
-        if (res.body.data.deleted_at == null) {
-          await client.query(
-            `UPDATE ${this.table} SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1`,
-            id,
-          );
-        } else {
-          await client.query(`DELETE FROM ${this.table} WHERE id = $1`, id);
-        }
 
-        return `${this.table} with id ${id} Removed`;
+        await client.query(
+          `UPDATE ${this.table} SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1`,
+          id,
+        );
+
+        return { msg: `${this.table} with id ${id} Removed` };
       } catch (error) {
         throw new ErrorResponse(error.toString(), 404);
       } finally {
@@ -581,11 +577,38 @@ class DB {
     }
   };
 
+  makeSlug = async (name: string, id?:number): Promise<string> => {
+    let slug = await this.slugify(name);
+    let newSlug = await this.customQuery(
+      `SELECT * FROM ${this.table} WHERE deleted_at is null AND slug = '${slug}' ${id ?`AND id <> ${id}`:""}`,
+      true,
+    );
+    // keep the slug unique within model
+    if (newSlug !== null) {
+      slug = `${slug}-${this.makeRandomStr(5)}`
+    } 
+
+    return slug
+  };
+
+  slugify = (str:string): string => {
+    let returnString:string;
+//needs more work
+    returnString = str.replaceAll(/[^a-zA-Z0-9]/g, ' ');
+    returnString = returnString.trim()
+    returnString = returnString.replaceAll(" ", "-");
+    returnString = returnString.replaceAll("--", "-");
+    returnString = returnString.toLocaleLowerCase();
+
+
+    return returnString
+}
+
   permissons = async (
     model_id: any,
     user: any,
   ): Promise<EPermissions> => {
-    if (user.role === "admin") return EPermissions.editable;
+    if (user.role === "admin") return EPermissions.admin;
 
     if (await this.isOwnerByID(model_id, user.id)) return EPermissions.owner;
 
@@ -598,6 +621,18 @@ class DB {
     } else {
       return EPermissions.read;
     }
+  };
+
+  makeRandomStr = (length: number): string => {
+    let result: string = "";
+    let characters =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+    let charactersLength = characters.length;
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+    return result;
   };
 }
 

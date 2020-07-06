@@ -1,12 +1,14 @@
 import { Router } from "https://deno.land/x/oak/mod.ts";
 import { UserController } from "../controllers/users.ts";
 import { BookController } from "../controllers/books.ts";
+import { NoteController } from "../controllers/notes.ts";
 import { ChapterController } from "../controllers/chapters.ts";
 import { protect, authorize } from "../middleware/auth.ts";
 import { register, login, me } from "../controllers/auth.ts";
 
 const userController = new UserController();
 const bookController = new BookController();
+const noteController = new NoteController();
 const chapterController = new ChapterController();
 
 const router = new Router();
@@ -26,6 +28,13 @@ router
     protect,
     authorize("admin"),
     userController.deleteUser,
+  );
+router
+  .post("/api/v1/notes", protect, noteController.addNote)
+  .delete(
+    "/api/v1/notes/:id",
+    protect,
+    noteController.deleteNote,
   );
 
 router

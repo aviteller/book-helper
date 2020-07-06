@@ -17,7 +17,7 @@ const JwtConfig = {
   schema: "Bearer",
   // use Env variable
   secretKey: Deno.env.get("JWT_SECRET") || "",
-  expirationTime: 60000,
+  expirationTime: 600000,
   type: "JWT",
   alg: "HS256",
 };

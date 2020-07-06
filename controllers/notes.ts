@@ -2,7 +2,7 @@ import { INote, Note } from "../models/Note.ts";
 import { ErrorResponse } from "../util/errorResponse.ts";
 import { makeResponse } from "../util/response.ts";
 import { getUserByContext } from "../util/token.ts";
-import { slugify } from "../util/slugify.ts";
+
 const noteModel = new Note();
 
 export class NoteController {
@@ -42,10 +42,12 @@ export class NoteController {
     if (!ctx.request.hasBody) {
       throw new ErrorResponse("No data found", 400);
     } else {
-      if (await noteModel.validate(body.value)) {
-        const { text, model, model_id } = body.value;
-        const user: any = await getUserByContext(ctx);
-        if (user) {
+      const user: any = await getUserByContext(ctx);
+      if (user) {
+        body.value.user_id = +user.id;
+   
+        if (await noteModel.validate(body.value)) {
+          const { text, model, model_id, user_id } = body.value;
           let note: INote = {
             text,
             user_id: +user.id,
@@ -56,9 +58,9 @@ export class NoteController {
           let result = await noteModel.addNote(note);
 
           ctx.response = makeResponse(ctx, 201, true, result);
+        } else {
+          throw new ErrorResponse("Please enter all required values", 404);
         }
-      } else {
-        throw new ErrorResponse("Please enter all required values", 404);
       }
     }
   };
@@ -88,14 +90,9 @@ export class NoteController {
   // @desc Delete Note
   // @ route DELETE  /api/v1/notes/:id
 
-  deleteNote = async ({
-    params,
-    response,
-  }: {
-    params: { id: string };
-    response: any;
-  }) => {
-    let results = await noteModel.deleteNote(params.id);
-    response = makeResponse(response, 201, true, results);
+  deleteNote = async (ctx:any) => {
+    let results = await noteModel.deleteNote(ctx.params.id);
+    console.log(results)
+    ctx.response = makeResponse(ctx, 201, true, results);
   };
 }
