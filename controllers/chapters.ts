@@ -19,15 +19,28 @@ export class ChapterController {
   // @desc Get Single Chapters
   // @ route GET /api/v1/chapters/:id
 
-  getChapter = async ({
-    params,
-    response,
-  }: {
-    params: { id: string };
-    response: any;
-  }) => {
-    let results = await chapterModel.getChapter(params.id);
-    response = makeResponse(response, 200, true, results);
+  getChapter = async (ctx: any) => {
+    let results = await chapterModel.getChapter(ctx.params.id);
+    ctx.response = makeResponse(ctx, 200, true, results);
+  };
+
+  getChapterWithDetails = async (ctx: any) => {
+    const user: any = await getUserByContext(ctx);
+    let permisson = await chapterModel.permissons(ctx.params.id, user);
+    if (permisson !== "no-access") {
+      let results: any = await chapterModel.getChapterWithDetails(
+        ctx.params.id,
+      );
+      results.permisson = permisson;
+      ctx.response = makeResponse(ctx, 200, true, results);
+    } else {
+      ctx.response = makeResponse(
+        ctx,
+        200,
+        true,
+        { success: false, msg: "no-access" },
+      );
+    }
   };
 
   // @desc Add Chapters
@@ -52,15 +65,21 @@ export class ChapterController {
         if (user) {
           let isAllowed = await bookModel.permissons(book_id, user);
 
-          if (isAllowed === "editable" || isAllowed === "owner") {
+          if (
+            isAllowed === "editable" || isAllowed === "owner" ||
+            isAllowed === "admin"
+          ) {
             let chapter: IChapter = {
               title,
               book_id,
               user_id: +user.id,
             };
-
+            let position = await chapterModel.getPositionByBookID(book_id);
+          
+            position !== null ? position++ : 1
+            
             chapter.slug = await slugify(title);
-            chapter = { ...chapter, ...values };
+            chapter = { ...chapter, ...values, position };
 
             let result = await chapterModel.addChapter(chapter);
             ctx.response = makeResponse(ctx, 201, true, result);
@@ -77,35 +96,31 @@ export class ChapterController {
   // @desc update Chapters
   // @ route PUT /api/v1/chapters/:id
 
-  updateChapter = async ({
-    params,
-    request,
-    response,
-  }: {
-    params: { id: string };
-    request: any;
-    response: any;
-  }) => {
-    const body = await request.body();
-    if (!request.hasBody) {
+  updateChapter = async (ctx: any) => {
+    const body = await ctx.request.body();
+    if (!ctx.request.hasBody) {
       throw new ErrorResponse("No data found", 400);
     } else {
-      let result = await chapterModel.updateChapter(body.value, params.id);
-      response = makeResponse(response, 201, true, result);
+
+      if(body.value.text) body.value.word_count = await chapterModel.wordCount(body.value.text)
+
+      let result = await chapterModel.updateChapter(body.value, ctx.params.id);
+      ctx.response = makeResponse(ctx, 201, true, result);
     }
   };
 
   // @desc Delete Chapter
   // @ route DELETE  /api/v1/chapters/:id
 
-  deleteChapter = async ({
-    params,
-    response,
-  }: {
-    params: { id: string };
-    response: any;
-  }) => {
-    let results = await chapterModel.deleteChapter(params.id);
-    response = makeResponse(response, 201, true, results);
+  deleteChapter = async (ctx: any) => {
+    let results = await chapterModel.deleteChapter(ctx.params.id);
+    ctx.response = makeResponse(ctx, 201, true, results);
+  };
+  // @desc Delete Chapter
+  // @ route DELETE  /api/v1/chapters/:id
+
+  swapPosition = async (ctx: any) => {
+    let results = await chapterModel.swapPosition(ctx.params.first_id, ctx.params.second_id);
+    ctx.response = makeResponse(ctx, 201, true, results);
   };
 }

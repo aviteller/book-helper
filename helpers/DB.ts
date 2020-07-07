@@ -26,8 +26,10 @@ class DB {
   record_events?: boolean = false;
 
   sortBy = (queryParams: any): string => {
+    console.log(queryParams)
     let { sort } = queryParams;
     let retrunStr: string = "";
+    console.log(sort)
     if (sort !== undefined) {
       if (sort.charAt(0) === "-") {
         retrunStr = ` ORDER BY ${this.alias}.${sort.substring(1)} DESC`;
@@ -212,17 +214,23 @@ class DB {
     return returnObj;
   };
 
-  getAllByValue = async (field: string, value: string, deleted?: boolean) => {
+  getAllByValue = async (field: string, value: string, deleted?: boolean, params?:any) => {
     let response: any = new Object();
 
     let result: any;
     try {
       try {
         await client.connect();
-
+        
+const sort = await this.sortBy(params);
+        // let {sortfield} = params
+        // if(Object.values(params).includes("sortfield")) sort = ` ORDER BY ${sortfield} `
+        // console.log(Object.values(params))
         let searchDeleted = deleted ? "is not" : "is";
+
+        console.log( `SELECT * FROM ${this.table} WHERE ${field} = $1 AND deleted_at ${searchDeleted} null ${sort}`)
         result = await client.query(
-          `SELECT * FROM ${this.table} WHERE ${field} = $1 AND deleted_at ${searchDeleted} null`,
+          `SELECT * FROM ${this.table} as ${this.alias} WHERE ${this.alias}.${field} = $1 AND deleted_at ${searchDeleted} null ${sort}`,
           value,
         );
       } catch (error) {
@@ -311,11 +319,11 @@ class DB {
     }
   };
 
-  customQuery = async (query: string, toReturn: boolean = false) => {
+  customQuery = async (query: string, toReturn: boolean = false, ...params:any) => {
     try {
       await client.connect();
-
-      const result = await client.query(query);
+      
+      const result = await client.query(query, ...params);
 
       if (result.rows.toString() === "") {
         if (!toReturn) {
@@ -333,11 +341,7 @@ class DB {
         });
         resObj.rows = resultsArray;
         return resObj;
-        // const resObj: any = new Object();
-        // result.rows.map((p) =>
-        //   result.rowDescription.columns.map((el, i) => (resObj[el.name] = p[i]))
-        // );
-        // return resObj;
+    
       }
     } catch (error) {
       throw new ErrorResponse(error.toString(), 404);
@@ -577,32 +581,51 @@ class DB {
     }
   };
 
-  makeSlug = async (name: string, id?:number): Promise<string> => {
+  makeSlug = async (name: string, id?: number): Promise<string> => {
     let slug = await this.slugify(name);
     let newSlug = await this.customQuery(
-      `SELECT * FROM ${this.table} WHERE deleted_at is null AND slug = '${slug}' ${id ?`AND id <> ${id}`:""}`,
+      `SELECT * FROM ${this.table} WHERE deleted_at is null AND slug = '${slug}' ${
+        id ? `AND id <> ${id}` : ""
+      }`,
       true,
     );
     // keep the slug unique within model
     if (newSlug !== null) {
-      slug = `${slug}-${this.makeRandomStr(5)}`
-    } 
+      slug = `${slug}-${this.makeRandomStr(5)}`;
+    }
 
-    return slug
+    return slug;
   };
 
-  slugify = (str:string): string => {
-    let returnString:string;
-//needs more work
-    returnString = str.replaceAll(/[^a-zA-Z0-9]/g, ' ');
-    returnString = returnString.trim()
+  restoreOne = async (id: number) => {
+    try {
+      await client.connect();
+      // check for deleted flag if deleted flag then perma delete
+
+      await client.query(
+        `UPDATE ${this.table} SET deleted_at = null WHERE id = $1`,
+        id,
+      );
+
+      return { msg: `${this.table} with id ${id} restored` };
+    } catch (error) {
+      throw new ErrorResponse(error.toString(), 404);
+    } finally {
+      await client.end();
+    }
+  };
+
+  slugify = (str: string): string => {
+    let returnString: string;
+    //needs more work
+    returnString = str.replaceAll(/[^a-zA-Z0-9]/g, " ");
+    returnString = returnString.trim();
     returnString = returnString.replaceAll(" ", "-");
     returnString = returnString.replaceAll("--", "-");
     returnString = returnString.toLocaleLowerCase();
 
-
-    return returnString
-}
+    return returnString;
+  };
 
   permissons = async (
     model_id: any,
@@ -633,6 +656,14 @@ class DB {
       result += characters.charAt(Math.floor(Math.random() * charactersLength));
     }
     return result;
+  };
+
+  wordCount = (str: string): number => {
+    return str.split(" ")
+      .filter(function (n) {
+        return n != "";
+      })
+      .length;
   };
 }
 

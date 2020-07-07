@@ -45,14 +45,16 @@ export class NoteController {
       const user: any = await getUserByContext(ctx);
       if (user) {
         body.value.user_id = +user.id;
-   
+        body.value.username = user.name;
+
         if (await noteModel.validate(body.value)) {
-          const { text, model, model_id, user_id } = body.value;
+          const { text, model, model_id, user_id, username } = body.value;
           let note: INote = {
             text,
-            user_id: +user.id,
+            user_id,
             model,
             model_id,
+            username,
           };
 
           let result = await noteModel.addNote(note);
@@ -90,9 +92,10 @@ export class NoteController {
   // @desc Delete Note
   // @ route DELETE  /api/v1/notes/:id
 
-  deleteNote = async (ctx:any) => {
+  deleteNote = async (ctx: any) => {
     let results = await noteModel.deleteNote(ctx.params.id);
-    console.log(results)
     ctx.response = makeResponse(ctx, 201, true, results);
   };
+
+
 }

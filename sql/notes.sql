@@ -2,6 +2,7 @@ CREATE TABLE public.notes
 (
     id serial,
     user_id integer,
+    username text,
     text text,
     model text,
     model_id integer,

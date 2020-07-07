@@ -9,6 +9,7 @@ CREATE TABLE public.chapters
     position text,
     status text,
     slug text,
+    word_count integer,
     public boolean DEFAULT false,
     public_read_only boolean DEFAULT false,
     created_at time with time zone DEFAULT CURRENT_TIMESTAMP,

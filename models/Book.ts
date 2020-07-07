@@ -92,4 +92,7 @@ export class Book extends DB {
   async deleteBook(id: any) {
     return await this.deleteOne(id);
   }
+  async restoreBook(id: any) {
+    return await this.restoreOne(id);
+  }
 }

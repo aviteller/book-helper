@@ -6,6 +6,7 @@ export interface INote {
   model: string;
   model_id: number;
   text: string;
+  username?:string
 }
 
 export class Note extends DB {

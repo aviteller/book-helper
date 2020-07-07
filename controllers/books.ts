@@ -95,10 +95,16 @@ export class BookController {
     if (!ctx.request.hasBody) {
       throw new ErrorResponse("No data found", 400);
     } else {
+      let result;
+
       if(body.value.name) {
         body.value.slug = await bookModel.makeSlug(body.value.name, ctx.params.id);
+      } else if (body.value.restore) {
+        result = await bookModel.restoreBook(ctx.params.id);
+      } else {
+
+         result = await bookModel.updateBook(body.value, ctx.params.id);
       }
-      let result = await bookModel.updateBook(body.value, ctx.params.id);
 
       // await auditLog("Book", result.id, "Updated", result.user_id)
       ctx.response = makeResponse(ctx, 201, true, result);

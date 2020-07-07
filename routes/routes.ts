@@ -80,7 +80,7 @@ router
     "/api/v1/chapters/:id",
     protect,
     authorize("admin", "user"),
-    chapterController.getChapter,
+    chapterController.getChapterWithDetails,
   )
   .post(
     "/api/v1/chapters",
@@ -88,6 +88,9 @@ router
     authorize("admin", "user"),
     chapterController.addChapter,
   )
+  .get(`/api/v1/chapters/swap/:first_id/:second_id`,protect,
+  authorize("admin", "user"),
+  chapterController.swapPosition)
   .put(
     "/api/v1/chapters/:id",
     protect,
